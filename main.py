@@ -22,6 +22,7 @@ from run_nfw_profile_grid import run_nfw_profile_grid
 from run_nfw_profile_mass_to_light import run_nfw_profile_mass_to_light
 from run_nfw_profile_normalization_grid import run_nfw_profile_normalization_grid
 from nfw_profile_normalization_grid_statistics import analyze_nfw_profile_normalization_grid
+from plot_nfw_profile_normalization_grid import plot_normalization_grid_stability
 from nfw_profile_mass_to_light_statistics import analyze_nfw_profile_mass_to_light
 from nfw_profile_statistics import analyze_nfw_profile_grid
 from plot_nfw_profiles import plot_nfw_profile_figures
@@ -145,6 +146,25 @@ def completed_nfw_profile_normalization_grid_runs():
     return sorted(runs, reverse=True)
 
 
+def latest_matching_nfw_profile_normalization_grid_statistics(run_dir):
+    """Return the latest complete normalization-grid summary for one grid run."""
+    expected_input = str(Path(run_dir).resolve())
+    matches = []
+    for candidate in (OUTPUT_DIR / "nfw_profile_normalization_grid" / "statistics").glob(
+        "summary_*",
+    ):
+        manifest_path = candidate / "manifest.json"
+        if not manifest_path.is_file():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if manifest.get("status") == "complete" and manifest.get("input_run") == expected_input:
+            matches.append(candidate)
+    return max(matches, default=None)
+
+
 def latest_matching_nfw_profile_statistics(run_dir):
     """Return the latest complete profile summary for one profile-grid run."""
     expected_input = str(Path(run_dir).resolve())
@@ -249,12 +269,13 @@ def main():
     print("19. Summarize completed mass-to-light NFW profile studies")
     print("20. Test NFW profiles across a tied stellar normalization grid")
     print("21. Summarize completed stellar normalization grid studies")
+    print("22. Generate stellar normalization grid sensitivity figure")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"}:
-        raise SystemExit("Choose a number from 0 to 21.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"}:
+        raise SystemExit("Choose a number from 0 to 22.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -490,6 +511,26 @@ def main():
             print(f"Choose a number from 1 to {len(runs)}.")
             return
         analyze_nfw_profile_normalization_grid(run_dir)
+
+    if choice == "22":
+        runs = completed_nfw_profile_normalization_grid_runs()
+        if not runs:
+            print("No completed stellar normalization grid runs were found.")
+            return
+        for number, run_dir in enumerate(runs, 1):
+            print(f"{number}. {run_dir.name}")
+        requested = input("Choose a completed run [1]: ").strip()
+        try:
+            selection = int(requested or "1")
+            run_dir = runs[selection - 1]
+        except (ValueError, IndexError):
+            print(f"Choose a number from 1 to {len(runs)}.")
+            return
+        statistics_dir = latest_matching_nfw_profile_normalization_grid_statistics(run_dir)
+        if statistics_dir is None:
+            print("Run option 21 for this normalization grid before generating figures.")
+            return
+        plot_normalization_grid_stability(statistics_dir)
 
     print(f"Results saved under {OUTPUT_DIR}")
 

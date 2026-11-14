@@ -3,6 +3,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pandas as pd
+from contextlib import redirect_stdout
+from io import StringIO
+from unittest.mock import patch
+
+import main as pipeline_main
 
 from plot_nfw_profile_normalization_grid import (
     normalization_grid_table,
@@ -27,6 +32,26 @@ def scale_changes():
 
 
 class TestPlotNormalizationGrid(unittest.TestCase):
+    def test_main_option_twenty_two_uses_matching_statistics(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            grid_run = root / "nfw_profile_normalization_grid" / "inner60_example"
+            grid_run.mkdir(parents=True)
+            (grid_run / "manifest.json").write_text('{"status": "complete"}')
+            (grid_run / "profile_identifiability.csv").write_text("galaxy_id\n")
+            statistics = root / "nfw_profile_normalization_grid" / "statistics" / "summary_example"
+            statistics.mkdir(parents=True)
+            (statistics / "manifest.json").write_text(
+                '{"status": "complete", "input_run": "' + str(grid_run.resolve()) + '"}',
+            )
+            with patch.object(pipeline_main, "OUTPUT_DIR", root), \
+                 patch.object(pipeline_main, "prepare_input"), \
+                 patch.object(pipeline_main, "plot_normalization_grid_stability") as plot, \
+                 patch("builtins.input", side_effect=["22", "1"]), \
+                 redirect_stdout(StringIO()):
+                pipeline_main.main()
+            plot.assert_called_once_with(statistics)
+
     def test_table_sorts_settings_by_disk_normalization(self):
         table = normalization_grid_table(profile_changes(), scale_changes())
         self.assertEqual(table["setting"].tolist(), ["disk_0.40", "disk_0.60"])
