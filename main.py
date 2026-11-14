@@ -22,6 +22,7 @@ from anchored_configuration_stability import analyze_configuration_stability
 from plot_anchored_stability import plot_radius_ceiling_stability
 from run_nfw_profile_grid import run_nfw_profile_grid
 from nfw_profile_statistics import analyze_nfw_profile_grid
+from plot_nfw_profiles import plot_nfw_profile_figures
 from prediction_statistics import analyze_prediction_run
 from horizon_statistics import analyze_horizons
 from visualize_rotation_rar import plot_rar
@@ -108,6 +109,23 @@ def completed_nfw_profile_runs():
     return sorted(runs, reverse=True)
 
 
+def latest_matching_nfw_profile_statistics(run_dir):
+    """Return the latest complete profile summary for one profile-grid run."""
+    expected_input = str(Path(run_dir).resolve())
+    matches = []
+    for candidate in (OUTPUT_DIR / "nfw_profiles" / "statistics").glob("summary_*"):
+        manifest_path = candidate / "manifest.json"
+        if not manifest_path.is_file():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if manifest.get("status") == "complete" and manifest.get("input_run") == expected_input:
+            matches.append(candidate)
+    return max(matches, default=None)
+
+
 def prepare_input():
     """Generate the input CSV on a fresh checkout."""
     if DATA_PATH.is_file():
@@ -190,12 +208,13 @@ def main():
     print("14. Generate anchored forecast stability figures")
     print("15. Profile NFW scale-radius identifiability from anchored inner fits")
     print("16. Summarize completed NFW scale-radius profiles")
+    print("17. Generate NFW scale-radius profile figures")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"}:
-        raise SystemExit("Choose a number from 0 to 16.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"}:
+        raise SystemExit("Choose a number from 0 to 17.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -363,6 +382,26 @@ def main():
             print(f"Choose a number from 1 to {len(runs)}.")
             return
         analyze_nfw_profile_grid(run_dir)
+
+    if choice == "17":
+        runs = completed_nfw_profile_runs()
+        if not runs:
+            print("No completed NFW profile-grid runs were found.")
+            return
+        for number, run_dir in enumerate(runs, 1):
+            print(f"{number}. {run_dir.name}")
+        requested = input("Choose a completed run [1]: ").strip()
+        try:
+            selection = int(requested or "1")
+            run_dir = runs[selection - 1]
+        except (ValueError, IndexError):
+            print(f"Choose a number from 1 to {len(runs)}.")
+            return
+        statistics_dir = latest_matching_nfw_profile_statistics(run_dir)
+        if statistics_dir is None:
+            print("Run option 16 for this profile grid before generating figures.")
+            return
+        plot_nfw_profile_figures(run_dir, statistics_dir)
 
     print(f"Results saved under {OUTPUT_DIR}")
 
