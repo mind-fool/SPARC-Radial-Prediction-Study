@@ -25,7 +25,7 @@ from nfw_profile_statistics import analyze_nfw_profile_grid
 from plot_nfw_profiles import plot_nfw_profile_figures
 from prediction_statistics import analyze_prediction_run
 from horizon_statistics import analyze_horizons
-from visualize_rotation_rar import plot_rar
+from plot_rar import plot_rar
 from run_optimizer_validation import run_validation
 
 

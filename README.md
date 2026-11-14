@@ -18,7 +18,7 @@ The rotation curves and baryonic components come from the [SPARC Newtonian mass-
 
 * Plot rotation curves for individual galaxies (plot_rotation_curve.py)
 
-* Plot the full Radial Acceleration Relation (visualize_rotation_rar.py)
+* Plot the full Radial Acceleration Relation (plot_rar.py)
 
 * Fit baryons plus a Burkert or NFW halo and flag fitted parameters near their bounds (`halo_models.py`, `burkert_halo_fit.py`).
 
