@@ -1,4 +1,6 @@
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -6,6 +8,7 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
+import main as pipeline_main
 from run_radial_prediction import classify_prediction_scores, comparison_rows, ensure_input_data
 
 
@@ -40,6 +43,24 @@ class TestRadialPrediction(unittest.TestCase):
             comparisons.loc["a", "delta_held_out_chi_squared_per_point_nfw_minus_burkert"],
             1.0,
         )
+
+    def test_main_option_eight_routes_only_radial_prediction(self):
+        with TemporaryDirectory() as directory:
+            with patch.object(pipeline_main, "OUTPUT_DIR", Path(directory)), \
+                 patch.object(pipeline_main, "prepare_input"), \
+                 patch.object(pipeline_main, "run_radial_prediction") as prediction, \
+                 patch.object(pipeline_main, "run_boundary_sensitivity") as boundary, \
+                 patch.object(pipeline_main, "run_validation") as validation, \
+                 patch("builtins.input", side_effect=["8", "NGC0100,NGC6195"]), \
+                 redirect_stdout(StringIO()):
+                pipeline_main.main()
+            prediction.assert_called_once_with(
+                output_dir=Path(directory) / "radial_prediction",
+                data_path=pipeline_main.DATA_PATH,
+                galaxy_ids=["NGC0100", "NGC6195"],
+            )
+            boundary.assert_not_called()
+            validation.assert_not_called()
 
 
 if __name__ == "__main__":

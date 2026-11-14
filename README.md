@@ -59,6 +59,9 @@ The two sweeps save the CSVs and manuscript outputs in `outputs/sweeps/`.
 * Option **6** runs only the optimizer check, leaving existing sweep outputs untouched.
 * Option **7** runs the separate full-sample halo-bound sensitivity study. It is not
   included in option **5**, because it deliberately performs many more fits.
+* Option **8** fits only each galaxy's inner radii and predicts its outer measured
+  radii. Press Enter to run every eligible galaxy, or enter a comma-separated list
+  for a short verification run.
 
 ### Compare Burkert and NFW
 
@@ -163,6 +166,22 @@ Burkert--NFW comparisons, configuration summaries, and a manifest with the sourc
 revision, input hash, software versions, and exact configurations. This is a
 numerical-sensitivity study: it does not establish a global optimum or identify a
 physically preferred model on its own.
+
+### Predict held-out outer radii
+
+Option **8** is the paper-specific prediction workflow. For every eligible galaxy,
+the innermost 70% of measured radii are used for fitting and the outermost 30% are
+held out for scoring. A galaxy must provide at least eight training points and four
+held-out points, yielding 107 eligible SPARC galaxies. The held-out baryonic
+decomposition remains available as a model input, but held-out velocities are never
+provided to the fitter.
+
+Each of the 17 pre-specified numerical-bound configurations is evaluated separately
+for Burkert and NFW. The workflow does not select a configuration using held-out
+velocities. It saves every inner fit, every outer prediction and residual, matched
+Burkert--NFW prediction comparisons, summaries, and a dated manifest under
+`outputs/radial_prediction/`. The held-out score is chi-squared per held-out point;
+it is not reduced chi-squared because no parameters are fit to those points.
 
 ### Tests
 
