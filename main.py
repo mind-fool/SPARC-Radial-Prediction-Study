@@ -19,6 +19,7 @@ from run_radial_prediction import run_radial_prediction
 from run_anchored_forecast import run_anchored_forecast
 from anchored_forecast_statistics import analyze_anchored_forecast
 from anchored_configuration_stability import analyze_configuration_stability
+from plot_anchored_stability import plot_radius_ceiling_stability
 from prediction_statistics import analyze_prediction_run
 from horizon_statistics import analyze_horizons
 from visualize_rotation_rar import plot_rar
@@ -62,6 +63,30 @@ def completed_anchored_forecast_runs():
         if manifest.get("status") == "complete":
             runs.append(candidate)
     return sorted(runs, reverse=True)
+
+
+def latest_matching_anchored_summary(run_dir, kind):
+    """Find the latest complete summary folder that belongs to one forecast run."""
+    roots = {
+        "statistics": OUTPUT_DIR / "anchored_forecast" / "statistics",
+        "stability": OUTPUT_DIR / "anchored_forecast" / "configuration_stability",
+    }
+    prefixes = {"statistics": "summary_", "stability": "stability_"}
+    if kind not in roots:
+        raise ValueError(f"Unknown anchored-summary kind: {kind!r}")
+    expected_input = str(Path(run_dir).resolve())
+    matches = []
+    for candidate in roots[kind].glob(f"{prefixes[kind]}*"):
+        manifest_path = candidate / "manifest.json"
+        if not manifest_path.is_file():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if manifest.get("status") == "complete" and manifest.get("input_run") == expected_input:
+            matches.append(candidate)
+    return max(matches, default=None)
 
 
 def prepare_input():
@@ -143,12 +168,13 @@ def main():
     print("11. Forecast middle and far-outer radii from one fixed inner fit")
     print("12. Summarize completed anchored forecasts")
     print("13. Test anchored forecasts for numerical-bound stability")
+    print("14. Generate anchored forecast stability figures")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"}:
-        raise SystemExit("Choose a number from 0 to 13.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"}:
+        raise SystemExit("Choose a number from 0 to 14.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -271,6 +297,27 @@ def main():
             print(f"Choose a number from 1 to {len(runs)}.")
             return
         analyze_configuration_stability(run_dir)
+
+    if choice == "14":
+        runs = completed_anchored_forecast_runs()
+        if not runs:
+            print("No completed anchored forecast runs were found.")
+            return
+        for number, run_dir in enumerate(runs, 1):
+            print(f"{number}. {run_dir.name}")
+        requested = input("Choose a completed run [1]: ").strip()
+        try:
+            selection = int(requested or "1")
+            run_dir = runs[selection - 1]
+        except (ValueError, IndexError):
+            print(f"Choose a number from 1 to {len(runs)}.")
+            return
+        statistics_dir = latest_matching_anchored_summary(run_dir, "statistics")
+        stability_dir = latest_matching_anchored_summary(run_dir, "stability")
+        if statistics_dir is None or stability_dir is None:
+            print("Run options 12 and 13 for this forecast before generating figures.")
+            return
+        plot_radius_ceiling_stability(stability_dir, statistics_dir)
 
     print(f"Results saved under {OUTPUT_DIR}")
 
