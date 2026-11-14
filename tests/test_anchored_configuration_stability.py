@@ -1,7 +1,13 @@
 import unittest
 
 import pandas as pd
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
+import main as pipeline_main
 from anchored_configuration_stability import (
     matched_configuration_changes,
     preference_transition_summary,
@@ -10,6 +16,21 @@ from anchored_configuration_stability import (
 
 
 class TestAnchoredConfigurationStability(unittest.TestCase):
+    def test_main_option_thirteen_uses_selected_completed_run(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "anchored_forecast" / "inner60_example"
+            run_dir.mkdir(parents=True)
+            (run_dir / "manifest.json").write_text('{"status": "complete"}')
+            (run_dir / "fit_forecasts.csv").write_text("configuration,model\n")
+            with patch.object(pipeline_main, "OUTPUT_DIR", root), \
+                 patch.object(pipeline_main, "prepare_input"), \
+                 patch.object(pipeline_main, "analyze_configuration_stability") as analyze, \
+                 patch("builtins.input", side_effect=["13", "1"]), \
+                 redirect_stdout(StringIO()):
+                pipeline_main.main()
+            analyze.assert_called_once_with(run_dir)
+
     def comparisons(self):
         return pd.DataFrame({
             "configuration": ["baseline", "baseline", "wide", "wide"] * 2,

@@ -18,6 +18,7 @@ from run_boundary_sensitivity import run_boundary_sensitivity
 from run_radial_prediction import run_radial_prediction
 from run_anchored_forecast import run_anchored_forecast
 from anchored_forecast_statistics import analyze_anchored_forecast
+from anchored_configuration_stability import analyze_configuration_stability
 from prediction_statistics import analyze_prediction_run
 from horizon_statistics import analyze_horizons
 from visualize_rotation_rar import plot_rar
@@ -141,12 +142,13 @@ def main():
     print("10. Compare radial prediction horizons on common galaxies")
     print("11. Forecast middle and far-outer radii from one fixed inner fit")
     print("12. Summarize completed anchored forecasts")
+    print("13. Test anchored forecasts for numerical-bound stability")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"}:
-        raise SystemExit("Choose a number from 0 to 12.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"}:
+        raise SystemExit("Choose a number from 0 to 13.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -253,6 +255,22 @@ def main():
             print(f"Choose a number from 1 to {len(runs)}.")
             return
         analyze_anchored_forecast(run_dir)
+
+    if choice == "13":
+        runs = completed_anchored_forecast_runs()
+        if not runs:
+            print("No completed anchored forecast runs were found.")
+            return
+        for number, run_dir in enumerate(runs, 1):
+            print(f"{number}. {run_dir.name}")
+        requested = input("Choose a completed run [1]: ").strip()
+        try:
+            selection = int(requested or "1")
+            run_dir = runs[selection - 1]
+        except (ValueError, IndexError):
+            print(f"Choose a number from 1 to {len(runs)}.")
+            return
+        analyze_configuration_stability(run_dir)
 
     print(f"Results saved under {OUTPUT_DIR}")
 
