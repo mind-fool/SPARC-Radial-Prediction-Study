@@ -66,6 +66,8 @@ The two sweeps save the CSVs and manuscript outputs in `outputs/sweeps/`.
   outer-radius prediction run. It uses the latest completed run by default.
 * Option **10** compares two or more completed prediction horizons using only the
   galaxies eligible at every selected horizon.
+* Option **11** uses one fixed inner fit to forecast both a middle and a far-outer
+  region. It is separate from option **5** because it is a paper-specific study.
 
 ### Compare Burkert and NFW
 
@@ -203,6 +205,38 @@ Option **10** writes common-sample paired-score summaries and per-galaxy winning
 model transitions across the selected horizons. It retains the exact input folders,
 input manifests, shared galaxy IDs, bootstrap settings, and its limitations in a
 new dated `outputs/radial_prediction/horizon_statistics/` folder.
+
+### Forecast middle and far-outer radii from one fixed inner fit
+
+Option **11** is the stricter anchored forecast. It splits each eligible curve by
+sorted measured radius into an inner 60% training region, a middle 20% forecast
+region, and a far-outer 20% forecast region. The fit uses only the inner region,
+then the exact same fitted parameters are used to predict both later regions. The
+model is not refit after the inner region.
+
+A galaxy must have at least 20 usable measured radii: 12 inner, four middle, and
+four far-outer points. The current SPARC input has 60 eligible galaxies. As in the
+other prediction workflow, the baryonic decomposition at the forecast radii remains
+available as model input, but their observed velocities are withheld from fitting.
+
+The runner evaluates Burkert and NFW separately under each of the 17 pre-specified
+numerical-bound configurations. It saves a dated folder in
+`outputs/anchored_forecast/` containing:
+
+* `fit_forecasts.csv`: the one inner-region fit per galaxy, model, and configuration,
+  followed by its middle and far-outer prediction scores;
+* `forecast_points.csv`: every forecast velocity, residual, and uncertainty-normalized
+  residual, labelled as middle or outer;
+* `model_comparisons.csv`: matched Burkert--NFW prediction comparisons within each
+  configuration and region;
+* `forecast_summary.csv`: configuration-level prediction and failure summaries;
+* `manifest.json`: the input hash, source hashes, software versions, exact split,
+  numerical configurations, and completion status.
+
+This design separates two questions that a changing holdout fraction confounds:
+whether a model can extrapolate farther from a fixed inner fit, and whether it has
+more or fewer inner points for fitting. The middle and far-outer points still come
+from the same published rotation curve, so they are not independent surveys.
 
 ### Tests
 
