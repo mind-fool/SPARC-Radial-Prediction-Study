@@ -16,6 +16,7 @@ from run_mass_to_light_sweep import main as run_mass_to_light_sweep
 from run_nfw_bound_sweep import main as run_nfw_bound_sweep
 from run_boundary_sensitivity import run_boundary_sensitivity
 from run_radial_prediction import run_radial_prediction
+from run_anchored_forecast import run_anchored_forecast
 from prediction_statistics import analyze_prediction_run
 from horizon_statistics import analyze_horizons
 from visualize_rotation_rar import plot_rar
@@ -120,12 +121,13 @@ def main():
     print("8. Predict held-out outer rotation-curve radii")
     print("9. Summarize completed outer-radius predictions")
     print("10. Compare radial prediction horizons on common galaxies")
+    print("11. Forecast middle and far-outer radii from one fixed inner fit")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}:
-        raise SystemExit("Choose a number from 0 to 10.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"}:
+        raise SystemExit("Choose a number from 0 to 11.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -208,6 +210,14 @@ def main():
             print("Choose at least two distinct completed runs.")
             return
         analyze_horizons(selected)
+
+    if choice == "11":
+        requested = input("Galaxy IDs separated by commas [all eligible galaxies]: ").strip()
+        selected = requested.split(",") if requested else None
+        run_anchored_forecast(
+            output_dir=OUTPUT_DIR / "anchored_forecast", data_path=DATA_PATH,
+            galaxy_ids=selected,
+        )
 
     print(f"Results saved under {OUTPUT_DIR}")
 
