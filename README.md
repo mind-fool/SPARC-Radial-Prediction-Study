@@ -62,6 +62,8 @@ The two sweeps save the CSVs and manuscript outputs in `outputs/sweeps/`.
 * Option **8** fits only each galaxy's inner radii and predicts its outer measured
   radii. Press Enter to run every eligible galaxy, or enter a comma-separated list
   for a short verification run.
+* Option **9** creates a separate galaxy-level statistical summary for a completed
+  outer-radius prediction run. It uses the latest completed run by default.
 
 ### Compare Burkert and NFW
 
@@ -182,6 +184,13 @@ velocities. It saves every inner fit, every outer prediction and residual, match
 Burkert--NFW prediction comparisons, summaries, and a dated manifest under
 `outputs/radial_prediction/`. The held-out score is chi-squared per held-out point;
 it is not reduced chi-squared because no parameters are fit to those points.
+
+Option **9** resamples galaxies, not individual velocity points, when computing
+the paired-score bootstrap intervals. It also writes paired score summaries,
+training-to-prediction preference transitions, and selected-bound-hit summaries
+to a separate dated folder under `outputs/radial_prediction/statistics/`. These
+are descriptive diagnostics, not a substitute for modelling correlated velocity
+errors or for correcting tests across the multiple bound configurations.
 
 ### Tests
 

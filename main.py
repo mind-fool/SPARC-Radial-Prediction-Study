@@ -1,6 +1,7 @@
 """Run the SPARC analysis workflows from one entry point."""
 
 from pathlib import Path
+import json
 
 from best_fit_calculation import fit_rar
 from burkert_halo_fit import DEFAULT_MAX_SCALE_RADIUS_KPC
@@ -15,6 +16,7 @@ from run_mass_to_light_sweep import main as run_mass_to_light_sweep
 from run_nfw_bound_sweep import main as run_nfw_bound_sweep
 from run_boundary_sensitivity import run_boundary_sensitivity
 from run_radial_prediction import run_radial_prediction
+from prediction_statistics import analyze_prediction_run
 from visualize_rotation_rar import plot_rar
 from run_optimizer_validation import run_validation
 
@@ -22,6 +24,23 @@ from run_optimizer_validation import run_validation
 PROJECT_DIR = Path(__file__).resolve().parent
 DATA_PATH = PROJECT_DIR / "GALAXY_CSVDATA.csv"
 OUTPUT_DIR = PROJECT_DIR / "outputs"
+
+
+def completed_prediction_runs():
+    """Return completed, self-contained outer-radius prediction result folders."""
+    root = OUTPUT_DIR / "radial_prediction"
+    runs = []
+    for candidate in root.glob("outer_holdout_*"):
+        manifest_path = candidate / "manifest.json"
+        if not (manifest_path.is_file() and (candidate / "fit_predictions.csv").is_file()):
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if manifest.get("status") == "complete":
+            runs.append(candidate)
+    return sorted(runs, reverse=True)
 
 
 def prepare_input():
@@ -98,12 +117,13 @@ def main():
     print("6. Check optimizer starting-point sensitivity")
     print("7. Test halo-fit boundary sensitivity (full 175-galaxy study)")
     print("8. Predict held-out outer rotation-curve radii")
+    print("9. Summarize completed outer-radius predictions")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8"}:
-        raise SystemExit("Choose a number from 0 to 8.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9"}:
+        raise SystemExit("Choose a number from 0 to 9.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -142,6 +162,22 @@ def main():
             output_dir=OUTPUT_DIR / "radial_prediction", data_path=DATA_PATH,
             galaxy_ids=selected,
         )
+
+    if choice == "9":
+        runs = completed_prediction_runs()
+        if not runs:
+            print("No completed outer-radius prediction runs were found.")
+            return
+        for number, run_dir in enumerate(runs, 1):
+            print(f"{number}. {run_dir.name}")
+        requested = input("Choose a completed run [1]: ").strip()
+        try:
+            selection = int(requested or "1")
+            run_dir = runs[selection - 1]
+        except (ValueError, IndexError):
+            print(f"Choose a number from 1 to {len(runs)}.")
+            return
+        analyze_prediction_run(run_dir)
 
     print(f"Results saved under {OUTPUT_DIR}")
 

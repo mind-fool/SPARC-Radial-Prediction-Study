@@ -1,8 +1,14 @@
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 
+import main as pipeline_main
 from prediction_statistics import (
     bootstrap_median_interval,
     paired_score_differences,
@@ -12,6 +18,21 @@ from prediction_statistics import (
 
 
 class TestPredictionStatistics(unittest.TestCase):
+    def test_main_option_nine_uses_selected_completed_run(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "radial_prediction" / "outer_holdout_example"
+            run_dir.mkdir(parents=True)
+            (run_dir / "manifest.json").write_text('{"status": "complete"}')
+            (run_dir / "fit_predictions.csv").write_text("configuration,model\n")
+            with patch.object(pipeline_main, "OUTPUT_DIR", root), \
+                 patch.object(pipeline_main, "prepare_input"), \
+                 patch.object(pipeline_main, "analyze_prediction_run") as analyze, \
+                 patch("builtins.input", side_effect=["9", "1"]), \
+                 redirect_stdout(StringIO()):
+                pipeline_main.main()
+            analyze.assert_called_once_with(run_dir)
+
     def results(self):
         return pd.DataFrame({
             "configuration": ["baseline"] * 8,
