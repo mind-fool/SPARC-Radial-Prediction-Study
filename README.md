@@ -68,6 +68,10 @@ The two sweeps save the CSVs and manuscript outputs in `outputs/sweeps/`.
   galaxies eligible at every selected horizon.
 * Option **11** uses one fixed inner fit to forecast both a middle and a far-outer
   region. It is separate from option **5** because it is a paper-specific study.
+* Options **12–14** summarize, test numerical-bound stability for, and generate
+  figures from a completed anchored forecast without rerunning its fits.
+* Option **15** profiles NFW scale-radius identifiability from the same fixed inner
+  data; options **16–17** summarize and plot a completed profile grid.
 
 ### Compare Burkert and NFW
 
@@ -237,6 +241,41 @@ This design separates two questions that a changing holdout fraction confounds:
 whether a model can extrapolate farther from a fixed inner fit, and whether it has
 more or fewer inner points for fitting. The middle and far-outer points still come
 from the same published rotation curve, so they are not independent surveys.
+
+### Profile NFW scale-radius identifiability
+
+Option **15** tests whether the inner rotation curve actually constrains an NFW
+scale radius. It uses the same 60/20/20 anchored split and the same 60 eligible
+galaxies as option **11**, but holds the NFW scale radius fixed at 41 logarithmically
+spaced values from 0.01 to 10,000 kpc. At each fixed radius, it refits only the NFW
+density normalization using the inner 60% of points. The middle and far-outer
+velocities are then scored without being used to select a radius.
+
+The grid endpoints match the minimum radius and the largest radius ceiling in the
+pre-specified boundary study. Each profile row records its inner-training
+chi-squared, density fit, and middle/far-outer prediction scores. The profile grid
+is deterministic: it searches the allowed log-density interval and refines the best
+grid interval. Negative baryonic squared-speed contributions are treated with the
+same positive-total-speed requirement as the main halo fitter.
+
+For each galaxy, `profile_summary.csv` records the scale radius at minimum training
+chi-squared plus the grid span satisfying `Delta chi-squared <= 1.00` and
+`Delta chi-squared <= 3.84`. These are labelled *nominal* one-parameter profile
+intervals. They are diagnostics under the stated fitting assumptions, not physical
+confidence intervals: correlated rotation-curve errors and astrophysical systematic
+uncertainties are not modeled.
+
+Option **16** writes a separate dated folder under `outputs/nfw_profiles/statistics/`
+containing the profile-status counts, training-selected profile rows, deterministic
+representative cases, and any infeasible profile points. A profile is called
+`closed`, `open_upper`, `open_lower`, or `open_both` according to whether its
+nominal 95% profile interval reaches one of the pre-specified grid edges.
+
+Option **17** generates PNG and PDF figures only from matching completed profile
+and summary folders. It writes a profile-status count figure and profile/forecast
+diagnostics for deterministic representative cases under `outputs/nfw_profiles/figures/`.
+The forecast panels are explicitly diagnostic; held-out scores are never used to
+choose a scale radius.
 
 ### Tests
 
