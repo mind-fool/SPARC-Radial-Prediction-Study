@@ -35,7 +35,7 @@ def profile_summary(rows):
     results = pd.DataFrame(rows).copy()
     successful = results.loc[results["fit_error"].eq("")].copy()
     if successful.empty:
-        return pd.DataFrame()
+        return results, pd.DataFrame()
     minimum = successful.groupby("galaxy_id")["training_chi_squared"].transform("min")
     successful["delta_training_chi_squared"] = successful["training_chi_squared"] - minimum
     results = results.merge(

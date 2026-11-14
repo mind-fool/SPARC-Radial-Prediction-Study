@@ -9,6 +9,13 @@ import numpy as np
 import pandas as pd
 
 
+def _boolean_column(values):
+    """Interpret Boolean values consistently after an in-memory or CSV round trip."""
+    if pd.api.types.is_bool_dtype(values):
+        return values.fillna(False)
+    return values.astype(str).str.casefold().eq("true") | values.eq(1)
+
+
 def profile_status(summary, *, level="95"):
     """Label whether a nominal profile interval touches either grid edge."""
     lower = f"nominal_{level}_touches_lower_grid"
@@ -18,8 +25,8 @@ def profile_status(summary, *, level="95"):
     if missing:
         raise ValueError(f"Missing profile summary columns: {sorted(missing)}")
     result = summary.copy()
-    lower_hit = result[lower].astype(bool)
-    upper_hit = result[upper].astype(bool)
+    lower_hit = _boolean_column(result[lower])
+    upper_hit = _boolean_column(result[upper])
     result["profile_status"] = np.select(
         [lower_hit & upper_hit, lower_hit, upper_hit],
         ["open_both", "open_lower", "open_upper"],
