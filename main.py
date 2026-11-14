@@ -21,6 +21,7 @@ from plot_anchored_stability import plot_radius_ceiling_stability
 from run_nfw_profile_grid import run_nfw_profile_grid
 from run_nfw_profile_mass_to_light import run_nfw_profile_mass_to_light
 from run_nfw_profile_normalization_grid import run_nfw_profile_normalization_grid
+from nfw_profile_normalization_grid_statistics import analyze_nfw_profile_normalization_grid
 from nfw_profile_mass_to_light_statistics import analyze_nfw_profile_mass_to_light
 from nfw_profile_statistics import analyze_nfw_profile_grid
 from plot_nfw_profiles import plot_nfw_profile_figures
@@ -113,6 +114,23 @@ def completed_nfw_profile_runs():
 def completed_nfw_profile_mass_to_light_runs():
     """Return completed NFW profile runs across stellar mass-to-light settings."""
     root = OUTPUT_DIR / "nfw_profile_mass_to_light"
+    runs = []
+    for candidate in root.glob("inner60_*"):
+        manifest_path = candidate / "manifest.json"
+        if not (manifest_path.is_file() and (candidate / "profile_identifiability.csv").is_file()):
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if manifest.get("status") == "complete":
+            runs.append(candidate)
+    return sorted(runs, reverse=True)
+
+
+def completed_nfw_profile_normalization_grid_runs():
+    """Return completed NFW profile runs across the tied normalization grid."""
+    root = OUTPUT_DIR / "nfw_profile_normalization_grid"
     runs = []
     for candidate in root.glob("inner60_*"):
         manifest_path = candidate / "manifest.json"
@@ -230,12 +248,13 @@ def main():
     print("18. Test NFW profile identifiability under stellar mass-to-light assumptions")
     print("19. Summarize completed mass-to-light NFW profile studies")
     print("20. Test NFW profiles across a tied stellar normalization grid")
+    print("21. Summarize completed stellar normalization grid studies")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"}:
-        raise SystemExit("Choose a number from 0 to 20.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"}:
+        raise SystemExit("Choose a number from 0 to 21.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -455,6 +474,22 @@ def main():
             output_dir=OUTPUT_DIR / "nfw_profile_normalization_grid", data_path=DATA_PATH,
             galaxy_ids=selected,
         )
+
+    if choice == "21":
+        runs = completed_nfw_profile_normalization_grid_runs()
+        if not runs:
+            print("No completed stellar normalization grid runs were found.")
+            return
+        for number, run_dir in enumerate(runs, 1):
+            print(f"{number}. {run_dir.name}")
+        requested = input("Choose a completed run [1]: ").strip()
+        try:
+            selection = int(requested or "1")
+            run_dir = runs[selection - 1]
+        except (ValueError, IndexError):
+            print(f"Choose a number from 1 to {len(runs)}.")
+            return
+        analyze_nfw_profile_normalization_grid(run_dir)
 
     print(f"Results saved under {OUTPUT_DIR}")
 
