@@ -3,14 +3,12 @@
 from pathlib import Path
 import json
 
-from best_fit_calculation import fit_rar
 from burkert_halo_fit import DEFAULT_MAX_SCALE_RADIUS_KPC
 from halo_fit_selection import fit_best_halo
 from compare_halo_fits import plot_halo_comparison
 from data_preprocess import load_sparc_dataset
-from filter_high_error_data import filter_data
 from plot_rotation_curve import plot_rotation_curve
-from rar_summary import generate_report
+from rar_analysis import filter_data, fit_rar, generate_report
 from report_converter import convert_rtf_to_text, convert_text_to_csv
 from run_mass_to_light_sweep import main as run_mass_to_light_sweep
 from run_nfw_bound_sweep import main as run_nfw_bound_sweep

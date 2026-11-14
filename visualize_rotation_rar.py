@@ -1,5 +1,5 @@
 from data_preprocess import load_sparc_dataset
-from best_fit_calculation import rar_model
+from rar_analysis import rar_model
 import matplotlib.pyplot as plt
 import numpy as np
 

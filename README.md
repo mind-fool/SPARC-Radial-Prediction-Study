@@ -14,7 +14,7 @@ The rotation curves and baryonic components come from the [SPARC Newtonian mass-
 
 * Preprocess SPARC dataset and compute observed and baryonic accelerations (data_preprocess.py)
 
-* Apply quality cuts to filter unreliable data points (filter_high_error_data.py)
+* Apply RAR quality cuts, fit the acceleration scale, and generate an RAR summary (rar_analysis.py)
 
 * Plot rotation curves for individual galaxies (plot_rotation_curve.py)
 
@@ -26,9 +26,6 @@ The rotation curves and baryonic components come from the [SPARC Newtonian mass-
 
 * Verify the halo equations by numerical integration and test parameter recovery on synthetic rotation curves (`tests/`).
 
-* Compute the best-fit RAR acceleration scale g0 (best_fit_calculation.py)
-
-* Generate a complete summary report including galaxy count, total points, and g0 (rar_summary.py)
 
 ##Installation
 
