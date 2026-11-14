@@ -1,5 +1,12 @@
 import unittest
 
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+import main as pipeline_main
 from run_nfw_profile_normalization_grid import (
     BASELINE_SETTING,
     BULGE_TO_DISK_MASS_TO_LIGHT_RATIO,
@@ -9,6 +16,22 @@ from run_nfw_profile_normalization_grid import (
 
 
 class TestNfwProfileNormalizationGrid(unittest.TestCase):
+    def test_main_option_twenty_routes_only_normalization_grid(self):
+        with TemporaryDirectory() as directory:
+            with patch.object(pipeline_main, "OUTPUT_DIR", Path(directory)), \
+                 patch.object(pipeline_main, "prepare_input"), \
+                 patch.object(pipeline_main, "run_nfw_profile_normalization_grid") as grid, \
+                 patch.object(pipeline_main, "run_nfw_profile_mass_to_light") as settings, \
+                 patch("builtins.input", side_effect=["20", "NGC0100,UGC05721"]), \
+                 redirect_stdout(StringIO()):
+                pipeline_main.main()
+            grid.assert_called_once_with(
+                output_dir=Path(directory) / "nfw_profile_normalization_grid",
+                data_path=pipeline_main.DATA_PATH,
+                galaxy_ids=["NGC0100", "UGC05721"],
+            )
+            settings.assert_not_called()
+
     def test_grid_is_pre_specified_and_centered_on_baseline(self):
         self.assertEqual(DISK_MASS_TO_LIGHT_GRID, (
             0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70,

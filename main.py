@@ -20,6 +20,7 @@ from anchored_configuration_stability import analyze_configuration_stability
 from plot_anchored_stability import plot_radius_ceiling_stability
 from run_nfw_profile_grid import run_nfw_profile_grid
 from run_nfw_profile_mass_to_light import run_nfw_profile_mass_to_light
+from run_nfw_profile_normalization_grid import run_nfw_profile_normalization_grid
 from nfw_profile_mass_to_light_statistics import analyze_nfw_profile_mass_to_light
 from nfw_profile_statistics import analyze_nfw_profile_grid
 from plot_nfw_profiles import plot_nfw_profile_figures
@@ -228,12 +229,13 @@ def main():
     print("17. Generate NFW scale-radius profile figures")
     print("18. Test NFW profile identifiability under stellar mass-to-light assumptions")
     print("19. Summarize completed mass-to-light NFW profile studies")
+    print("20. Test NFW profiles across a tied stellar normalization grid")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"}:
-        raise SystemExit("Choose a number from 0 to 19.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"}:
+        raise SystemExit("Choose a number from 0 to 20.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -445,6 +447,14 @@ def main():
             print(f"Choose a number from 1 to {len(runs)}.")
             return
         analyze_nfw_profile_mass_to_light(run_dir)
+
+    if choice == "20":
+        requested = input("Galaxy IDs separated by commas [all eligible galaxies]: ").strip()
+        selected = requested.split(",") if requested else None
+        run_nfw_profile_normalization_grid(
+            output_dir=OUTPUT_DIR / "nfw_profile_normalization_grid", data_path=DATA_PATH,
+            galaxy_ids=selected,
+        )
 
     print(f"Results saved under {OUTPUT_DIR}")
 
