@@ -1,10 +1,16 @@
-### SPARC-RAR-Python-Pipeline
+# SPARC Radial Prediction Study
 
-A Python pipeline for reproducing the radial acceleration relation (RAR) and comparing galaxy rotation-curve models using public SPARC data.
+A reproducible Python study of NFW scale-radius identifiability and radial
+rotation-curve prediction using public SPARC data.
 
 ### Overview
 
-The RAR workflow computes observed and baryonic accelerations and estimates the characteristic acceleration scale `g0`. The rotation-curve workflow compares baryons plus a Burkert halo with baryons plus an NFW halo using the same measured velocities and quoted uncertainties. It plots both fitted curves and their residuals against radius.
+The repository retains a general RAR and rotation-curve workflow, then extends it
+to the paper-specific question: when an NFW halo is fitted only to a galaxy's
+inner rotation curve, does that curve constrain its scale radius, and how stable
+is the result under numerical and stellar mass-to-light assumptions? The
+rotation-curve workflow compares baryons plus a Burkert halo with baryons plus an
+NFW halo using the same measured velocities and quoted uncertainties.
 
 The rotation curves and baryonic components come from the [SPARC Newtonian mass-model table](https://astroweb.case.edu/SPARC/MassModels_Lelli2016c.mrt).
 
@@ -27,16 +33,16 @@ The rotation curves and baryonic components come from the [SPARC Newtonian mass-
 * Verify the halo equations by numerical integration and test parameter recovery on synthetic rotation curves (`tests/`).
 
 
-##Installation
+## Installation
 
-* Clone the repository: git clone https://github.com/mind-fool/SPARC-RAR-Python-Pipeline.git
+* Clone the repository: git clone https://github.com/mind-fool/SPARC-Radial-Prediction-Study.git
  and navigate to the project folder.
 
 * Create and activate a Python virtual environment: python3 -m venv ven and then source ven/bin/activate (Linux/macOS) or ven\Scripts\activate (Windows).
 
 * Install the required packages: pip install -r requirements.txt.
 
-##Usage
+## Usage
 
 Run `python3 main.py` from the project folder, or open `main.py` and press Run.
 The menu offers the RAR analysis, selected-galaxy rotation curves and halo fits,
@@ -69,6 +75,11 @@ The two sweeps save the CSVs and manuscript outputs in `outputs/sweeps/`.
   figures from a completed anchored forecast without rerunning its fits.
 * Option **15** profiles NFW scale-radius identifiability from the same fixed inner
   data; options **16–17** summarize and plot a completed profile grid.
+* Option **18** repeats the fixed-radius NFW profile study under three
+  pre-specified stellar mass-to-light settings while retaining identical shared
+  observations, galaxies, radial splits, radius grid, and density bounds.
+* Option **19** summarizes one completed option-18 run, including profile-status
+  counts and every matched baseline-to-alternative classification change.
 
 ### Compare Burkert and NFW
 
@@ -273,6 +284,27 @@ and summary folders. It writes a profile-status count figure and profile/forecas
 diagnostics for deterministic representative cases under `outputs/nfw_profiles/figures/`.
 The forecast panels are explicitly diagnostic; held-out scores are never used to
 choose a scale radius.
+
+### Test profile identifiability under stellar mass-to-light assumptions
+
+Option **18** tests whether the nominal NFW profile classification depends on the
+adopted stellar mass-to-light ratios. It repeats the option-15 profile calculation
+on the exact same 60 anchored-split galaxies and shared ID--radius observations.
+The fixed NFW radius grid (0.01 to 10,000 kpc), density bounds, 60/20/20 radial
+split, and nominal profile thresholds remain unchanged. Only the stellar settings
+change: baseline disk/bulge values of 0.5/0.7, a higher-disk case of 0.6/0.7, and
+a lower-bulge case of 0.5/0.5.
+
+Option **19** writes profile-status counts, matched galaxy-level changes, and
+baseline-to-alternative status transitions under
+`outputs/nfw_profile_mass_to_light/statistics/`. For the completed 2026-11-14
+60-galaxy run, the baseline contained 54 closed, five upper-open, and one
+lower-open nominal profiles. The higher-disk setting changed one classification;
+the lower-bulge setting changed three. Thus 59 of 60 and 57 of 60 nominal profile
+classifications, respectively, remained unchanged under these two alternative
+settings. This is a controlled sensitivity result, not a statement that every
+best-fit scale radius is physically robust or that the nominal intervals are
+physical confidence intervals.
 
 ### Tests
 
