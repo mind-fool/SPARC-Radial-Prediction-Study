@@ -22,6 +22,7 @@ from anchored_configuration_stability import analyze_configuration_stability
 from plot_anchored_stability import plot_radius_ceiling_stability
 from run_nfw_profile_grid import run_nfw_profile_grid
 from run_nfw_profile_mass_to_light import run_nfw_profile_mass_to_light
+from nfw_profile_mass_to_light_statistics import analyze_nfw_profile_mass_to_light
 from nfw_profile_statistics import analyze_nfw_profile_grid
 from plot_nfw_profiles import plot_nfw_profile_figures
 from prediction_statistics import analyze_prediction_run
@@ -100,6 +101,23 @@ def completed_nfw_profile_runs():
     for candidate in root.glob("inner60_*"):
         manifest_path = candidate / "manifest.json"
         if not (manifest_path.is_file() and (candidate / "profile_grid.csv").is_file()):
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if manifest.get("status") == "complete":
+            runs.append(candidate)
+    return sorted(runs, reverse=True)
+
+
+def completed_nfw_profile_mass_to_light_runs():
+    """Return completed NFW profile runs across stellar mass-to-light settings."""
+    root = OUTPUT_DIR / "nfw_profile_mass_to_light"
+    runs = []
+    for candidate in root.glob("inner60_*"):
+        manifest_path = candidate / "manifest.json"
+        if not (manifest_path.is_file() and (candidate / "profile_identifiability.csv").is_file()):
             continue
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -211,12 +229,13 @@ def main():
     print("16. Summarize completed NFW scale-radius profiles")
     print("17. Generate NFW scale-radius profile figures")
     print("18. Test NFW profile identifiability under stellar mass-to-light assumptions")
+    print("19. Summarize completed mass-to-light NFW profile studies")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"}:
-        raise SystemExit("Choose a number from 0 to 18.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"}:
+        raise SystemExit("Choose a number from 0 to 19.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -412,6 +431,22 @@ def main():
             output_dir=OUTPUT_DIR / "nfw_profile_mass_to_light", data_path=DATA_PATH,
             galaxy_ids=selected,
         )
+
+    if choice == "19":
+        runs = completed_nfw_profile_mass_to_light_runs()
+        if not runs:
+            print("No completed mass-to-light NFW profile runs were found.")
+            return
+        for number, run_dir in enumerate(runs, 1):
+            print(f"{number}. {run_dir.name}")
+        requested = input("Choose a completed run [1]: ").strip()
+        try:
+            selection = int(requested or "1")
+            run_dir = runs[selection - 1]
+        except (ValueError, IndexError):
+            print(f"Choose a number from 1 to {len(runs)}.")
+            return
+        analyze_nfw_profile_mass_to_light(run_dir)
 
     print(f"Results saved under {OUTPUT_DIR}")
 

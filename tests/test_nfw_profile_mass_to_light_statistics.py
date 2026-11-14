@@ -3,7 +3,11 @@ import unittest
 import pandas as pd
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from contextlib import redirect_stdout
+from io import StringIO
+from unittest.mock import patch
 
+import main as pipeline_main
 from nfw_profile_mass_to_light_statistics import (
     analyze_nfw_profile_mass_to_light,
     matched_profile_changes,
@@ -34,6 +38,21 @@ def identifiability_table():
 
 
 class TestProfileMassToLightStatistics(unittest.TestCase):
+    def test_main_option_nineteen_uses_selected_completed_run(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "nfw_profile_mass_to_light" / "inner60_example"
+            run_dir.mkdir(parents=True)
+            (run_dir / "manifest.json").write_text('{"status": "complete"}')
+            (run_dir / "profile_identifiability.csv").write_text("galaxy_id\n")
+            with patch.object(pipeline_main, "OUTPUT_DIR", root), \
+                 patch.object(pipeline_main, "prepare_input"), \
+                 patch.object(pipeline_main, "analyze_nfw_profile_mass_to_light") as analyze, \
+                 patch("builtins.input", side_effect=["19", "1"]), \
+                 redirect_stdout(StringIO()):
+                pipeline_main.main()
+            analyze.assert_called_once_with(run_dir)
+
     def test_analyzer_writes_matched_change_outputs(self):
         with TemporaryDirectory() as directory:
             input_dir = Path(directory) / "inner60_example"
