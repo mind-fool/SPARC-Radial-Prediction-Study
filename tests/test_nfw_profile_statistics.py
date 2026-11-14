@@ -1,7 +1,13 @@
 import unittest
 
 import pandas as pd
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
+import main as pipeline_main
 from nfw_profile_statistics import (
     profile_status,
     representative_profiles,
@@ -10,6 +16,21 @@ from nfw_profile_statistics import (
 
 
 class TestNfwProfileStatistics(unittest.TestCase):
+    def test_main_option_sixteen_uses_selected_completed_run(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "nfw_profiles" / "inner60_example"
+            run_dir.mkdir(parents=True)
+            (run_dir / "manifest.json").write_text('{"status": "complete"}')
+            (run_dir / "profile_grid.csv").write_text("galaxy_id\n")
+            with patch.object(pipeline_main, "OUTPUT_DIR", root), \
+                 patch.object(pipeline_main, "prepare_input"), \
+                 patch.object(pipeline_main, "analyze_nfw_profile_grid") as analyze, \
+                 patch("builtins.input", side_effect=["16", "1"]), \
+                 redirect_stdout(StringIO()):
+                pipeline_main.main()
+            analyze.assert_called_once_with(run_dir)
+
     def summary(self):
         return pd.DataFrame({
             "galaxy_id": ["CLOSED", "UPPER", "LOWER", "BOTH"],
