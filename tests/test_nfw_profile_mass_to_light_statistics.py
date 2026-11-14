@@ -12,6 +12,7 @@ from nfw_profile_mass_to_light_statistics import (
     analyze_nfw_profile_mass_to_light,
     matched_profile_changes,
     profile_change_summary,
+    scale_radius_change_summary,
     profile_status_transitions,
     status_count_summary,
 )
@@ -87,6 +88,16 @@ class TestProfileMassToLightStatistics(unittest.TestCase):
         self.assertEqual(summary.loc["lower_bulge", "profile_status_unchanged"], 1)
         transitions = profile_status_transitions(matched)
         self.assertEqual(transitions["galaxies"].sum(), 4)
+
+    def test_scale_radius_summary_counts_large_changes_separately_from_status_changes(self):
+        matched = matched_profile_changes(identifiability_table())
+        matched.loc[matched.index[0], "minimum_scale_radius_ratio_to_baseline"] = 0.1
+        matched.loc[matched.index[1], "minimum_scale_radius_ratio_to_baseline"] = 10.0
+        summary = scale_radius_change_summary(matched).set_index("setting")
+        self.assertEqual(summary.loc["higher_disk", "factor_of_ten_or_more"], 2)
+        self.assertEqual(
+            summary.loc["higher_disk", "factor_of_ten_with_unchanged_status"], 1,
+        )
 
 
 if __name__ == "__main__":

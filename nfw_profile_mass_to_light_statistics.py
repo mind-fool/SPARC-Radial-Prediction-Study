@@ -5,6 +5,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 
@@ -91,6 +92,41 @@ def profile_status_transitions(matched):
     )
 
 
+def scale_radius_change_summary(matched):
+    """Summarize matched changes in the training-selected NFW scale radius."""
+    required = {
+        "setting", "galaxy_id", "profile_status_changed",
+        "minimum_scale_radius_ratio_to_baseline",
+    }
+    missing = required.difference(matched.columns)
+    if missing:
+        raise ValueError(f"Missing matched-change columns: {sorted(missing)}")
+    ratios = matched["minimum_scale_radius_ratio_to_baseline"]
+    if not np.all(np.isfinite(ratios)) or np.any(ratios <= 0):
+        raise ValueError("Scale-radius ratios must be finite and positive.")
+    data = matched.assign(
+        log10_scale_radius_ratio=np.log10(ratios),
+        factor_of_ten_or_more=np.abs(np.log10(ratios)) >= 1.0,
+    )
+    data["factor_of_ten_with_unchanged_status"] = (
+        data["factor_of_ten_or_more"] & ~data["profile_status_changed"]
+    )
+    summary = data.groupby("setting", sort=True).agg(
+        galaxies=("galaxy_id", "size"),
+        median_log10_scale_radius_ratio=("log10_scale_radius_ratio", "median"),
+        median_absolute_log10_scale_radius_shift=("log10_scale_radius_ratio", lambda values: values.abs().median()),
+        factor_of_ten_or_more=("factor_of_ten_or_more", "sum"),
+        factor_of_ten_with_unchanged_status=("factor_of_ten_with_unchanged_status", "sum"),
+    ).reset_index()
+    summary["median_scale_radius_ratio"] = 10.0 ** summary[
+        "median_log10_scale_radius_ratio"
+    ]
+    summary["factor_of_ten_or_more_fraction"] = (
+        summary["factor_of_ten_or_more"] / summary["galaxies"]
+    )
+    return summary
+
+
 def analyze_nfw_profile_mass_to_light(input_run_dir, output_dir=None, *,
                                       baseline=DEFAULT_BASELINE):
     """Write a reproducible report for one completed profile-robustness run."""
@@ -106,6 +142,7 @@ def analyze_nfw_profile_mass_to_light(input_run_dir, output_dir=None, *,
     matched = matched_profile_changes(identifiability, baseline=baseline)
     change_summary = profile_change_summary(matched)
     transitions = profile_status_transitions(matched)
+    scale_radius_summary = scale_radius_change_summary(matched)
 
     root = Path(output_dir) if output_dir else input_run_dir.parent / "statistics"
     run_dir = root / datetime.now(timezone.utc).strftime("summary_%Y%m%dT%H%M%S_%fZ")
@@ -114,6 +151,7 @@ def analyze_nfw_profile_mass_to_light(input_run_dir, output_dir=None, *,
     matched.to_csv(run_dir / "galaxy_profile_changes.csv", index=False)
     change_summary.to_csv(run_dir / "profile_change_summary.csv", index=False)
     transitions.to_csv(run_dir / "profile_status_transitions.csv", index=False)
+    scale_radius_summary.to_csv(run_dir / "scale_radius_change_summary.csv", index=False)
     manifest = {
         "status": "complete",
         "created_utc": datetime.now(timezone.utc).isoformat(),
