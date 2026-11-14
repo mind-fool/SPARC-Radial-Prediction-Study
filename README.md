@@ -64,6 +64,8 @@ The two sweeps save the CSVs and manuscript outputs in `outputs/sweeps/`.
   for a short verification run.
 * Option **9** creates a separate galaxy-level statistical summary for a completed
   outer-radius prediction run. It uses the latest completed run by default.
+* Option **10** compares two or more completed prediction horizons using only the
+  galaxies eligible at every selected horizon.
 
 ### Compare Burkert and NFW
 
@@ -196,6 +198,11 @@ training-to-prediction preference transitions, and selected-bound-hit summaries
 to a separate dated folder under `outputs/radial_prediction/statistics/`. These
 are descriptive diagnostics, not a substitute for modelling correlated velocity
 errors or for correcting tests across the multiple bound configurations.
+
+Option **10** writes common-sample paired-score summaries and per-galaxy winning
+model transitions across the selected horizons. It retains the exact input folders,
+input manifests, shared galaxy IDs, bootstrap settings, and its limitations in a
+new dated `outputs/radial_prediction/horizon_statistics/` folder.
 
 ### Tests
 
