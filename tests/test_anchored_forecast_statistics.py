@@ -6,9 +6,11 @@ from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
+import json
 
 import main as pipeline_main
 from anchored_forecast_statistics import (
+    analyze_anchored_forecast,
     paired_score_differences,
     region_preference_transitions,
     training_to_forecast_transitions,
@@ -64,6 +66,36 @@ class TestAnchoredForecastStatistics(unittest.TestCase):
         self.assertEqual(by_galaxy.loc["G1", "middle_preference"], "burkert")
         self.assertEqual(by_galaxy.loc["G1", "outer_preference"], "nfw")
         self.assertEqual(counts["galaxies"].sum(), 2)
+
+    def test_analyzer_writes_one_bound_summary_per_configuration(self):
+        rows = []
+        comparisons = []
+        for configuration in ("first", "second"):
+            for model, train, middle, outer in (
+                ("burkert", 1.0, 2.0, 3.0), ("nfw", 2.0, 1.0, 4.0),
+            ):
+                rows.append({
+                    "configuration": configuration, "family": "test", "galaxy_id": "G1",
+                    "model": model, "training_reduced_chi_squared": train,
+                    "middle_chi_squared_per_point": middle,
+                    "outer_chi_squared_per_point": outer,
+                    "middle_prediction_error": "", "outer_prediction_error": "",
+                    "scale_radius_bound_hit": "",
+                })
+            comparisons.extend([
+                {"configuration": configuration, "galaxy_id": "G1", "region": "middle",
+                 "lower_score_model": "nfw"},
+                {"configuration": configuration, "galaxy_id": "G1", "region": "outer",
+                 "lower_score_model": "burkert"},
+            ])
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            pd.DataFrame(rows).to_csv(root / "fit_forecasts.csv", index=False)
+            pd.DataFrame(comparisons).to_csv(root / "model_comparisons.csv", index=False)
+            (root / "manifest.json").write_text(json.dumps({"status": "complete"}))
+            output = analyze_anchored_forecast(root, root / "statistics", replicates=10)
+            bound_rows = pd.read_csv(output / "bound_hit_summary.csv")
+        self.assertEqual(len(bound_rows), 8)
 
 
 if __name__ == "__main__":

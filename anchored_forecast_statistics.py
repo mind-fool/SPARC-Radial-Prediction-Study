@@ -134,7 +134,6 @@ def analyze_anchored_forecast(input_run_dir, output_dir=None, *,
                 dict(row, configuration=configuration, family=family, region=region)
                 for row in counts.to_dict("records")
             )
-            bound_rows.extend(bound_hit_summary(results, region).to_dict("records"))
 
         transitions, counts = region_preference_transitions(comparisons, configuration)
         region_rows.extend(
@@ -145,6 +144,9 @@ def analyze_anchored_forecast(input_run_dir, output_dir=None, *,
             dict(row, configuration=configuration, family=family)
             for row in counts.to_dict("records")
         )
+
+    for region in REGIONS:
+        bound_rows.extend(bound_hit_summary(results, region).to_dict("records"))
 
     pd.DataFrame(paired_rows).to_csv(run_dir / "paired_score_summary.csv", index=False)
     pd.DataFrame(training_rows).to_csv(run_dir / "training_to_forecast_transitions.csv", index=False)
