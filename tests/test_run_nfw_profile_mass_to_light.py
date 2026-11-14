@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import main as pipeline_main
-from run_nfw_profile_mass_to_light import shared_observation_index
+from run_nfw_profile_mass_to_light import shared_observation_index, validate_stellar_settings
 
 
 class TestProfileMassToLightStudy(unittest.TestCase):
@@ -36,6 +36,10 @@ class TestProfileMassToLightStudy(unittest.TestCase):
         }
         shared = shared_observation_index(datasets)
         self.assertEqual(list(shared), [("G1", 1.0), ("G2", 1.0)])
+
+    def test_stellar_settings_require_the_named_baseline(self):
+        with self.assertRaisesRegex(ValueError, "Baseline setting"):
+            validate_stellar_settings((("case", 0.5, 0.7),), "baseline")
 
 
 if __name__ == "__main__":

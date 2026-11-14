@@ -27,6 +27,7 @@ from run_radial_prediction import ensure_input_data
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
+DEFAULT_PURPOSE = "NFW profile-identifiability robustness to pre-specified stellar mass-to-light assumptions."
 
 
 def shared_observation_index(datasets):
@@ -44,6 +45,26 @@ def shared_observation_index(datasets):
     if shared is None or shared.empty:
         raise ValueError("No observations are shared across the stellar settings.")
     return shared
+
+
+def validate_stellar_settings(stellar_settings, baseline_setting):
+    """Validate named positive stellar settings and return an immutable sequence."""
+    settings = tuple(stellar_settings)
+    if not settings:
+        raise ValueError("At least one stellar setting is required.")
+    names = []
+    for setting, disk_ratio, bulge_ratio in settings:
+        if not isinstance(setting, str) or not setting:
+            raise ValueError("Each stellar setting needs a nonempty string name.")
+        ratios = np.asarray([disk_ratio, bulge_ratio], dtype=float)
+        if not np.all(np.isfinite(ratios)) or np.any(ratios <= 0):
+            raise ValueError("Stellar mass-to-light ratios must be finite and positive.")
+        names.append(setting)
+    if len(set(names)) != len(names):
+        raise ValueError("Stellar setting names must be unique.")
+    if baseline_setting not in names:
+        raise ValueError(f"Baseline setting {baseline_setting!r} is not present.")
+    return settings
 
 
 def _git_metadata():
@@ -123,8 +144,14 @@ def run_nfw_profile_mass_to_light(
     output_dir=None, *, data_path=None, galaxy_ids=None,
     scale_radius_grid_kpc=PROFILE_RADIUS_GRID_KPC,
     density_bounds=DEFAULT_DENSITY_BOUNDS,
+    stellar_settings=STELLAR_SETTINGS,
+    baseline_setting="baseline",
+    purpose=DEFAULT_PURPOSE,
+    source_files=(),
+    run_label="mass-to-light NFW profile",
 ):
     """Run controlled NFW profile grids across the pre-specified stellar settings."""
+    settings = validate_stellar_settings(stellar_settings, baseline_setting)
     grid = np.asarray(scale_radius_grid_kpc, dtype=float)
     if grid.ndim != 1 or grid.size < 3 or not np.all(np.isfinite(grid)) or np.any(grid <= 0):
         raise ValueError("scale_radius_grid_kpc needs at least three finite positive radii.")
@@ -138,7 +165,7 @@ def run_nfw_profile_mass_to_light(
             data_path, disk_mass_to_light=disk_ratio,
             bulge_mass_to_light=bulge_ratio,
         )
-        for setting, disk_ratio, bulge_ratio in STELLAR_SETTINGS
+        for setting, disk_ratio, bulge_ratio in settings
     }
     shared_points = shared_observation_index(datasets)
     datasets = {
@@ -150,7 +177,7 @@ def run_nfw_profile_mass_to_light(
         setting: eligible_anchored_galaxy_ids(dataset)
         for setting, dataset in datasets.items()
     }
-    baseline_eligible = eligible_by_setting["baseline"]
+    baseline_eligible = eligible_by_setting[baseline_setting]
     missing = {
         setting: sorted(set(baseline_eligible).difference(ids))
         for setting, ids in eligible_by_setting.items()
@@ -183,7 +210,7 @@ def run_nfw_profile_mass_to_light(
     manifest = {
         "status": "running",
         "started_utc": datetime.now(timezone.utc).isoformat(),
-        "purpose": "NFW profile-identifiability robustness to pre-specified stellar mass-to-light assumptions.",
+        "purpose": purpose,
         "controlled_quantities": (
             "Shared ID-radius observations, galaxy sample, anchored radial split, scale-radius "
             "grid, density bounds, and nominal Delta chi-squared thresholds are fixed. "
@@ -203,7 +230,7 @@ def run_nfw_profile_mass_to_light(
         "scipy": scipy.__version__,
         "stellar_settings": [
             {"setting": setting, "disk_mass_to_light": disk, "bulge_mass_to_light": bulge}
-            for setting, disk, bulge in STELLAR_SETTINGS
+            for setting, disk, bulge in settings
         ],
         "shared_observation_count": len(shared_points),
         "training_fraction": 0.60,
@@ -219,6 +246,7 @@ def run_nfw_profile_mass_to_light(
                 "run_nfw_profile_mass_to_light.py", "run_nfw_profile_grid.py",
                 "nfw_profile_fit.py", "nfw_profile_statistics.py", "data_preprocess.py",
                 "anchored_radial_split.py", "radial_holdout.py", "run_mass_to_light_sweep.py",
+                *source_files,
             ) if (PROJECT_DIR / name).is_file()
         },
     }
@@ -226,10 +254,10 @@ def run_nfw_profile_mass_to_light(
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(
         f"Profiling {len(selected)} shared galaxies at {len(grid)} NFW radii under "
-        f"{len(STELLAR_SETTINGS)} stellar settings.", flush=True,
+        f"{len(settings)} stellar settings.", flush=True,
     )
     all_rows, all_summaries, all_status = [], [], []
-    for setting, disk_ratio, bulge_ratio in STELLAR_SETTINGS:
+    for setting, disk_ratio, bulge_ratio in settings:
         print(f"Running {setting} (disk={disk_ratio:g}, bulge={bulge_ratio:g})...", flush=True)
         rows = _profile_rows(
             setting, disk_ratio, bulge_ratio, datasets[setting], selected, grid, density_bounds,
@@ -252,7 +280,7 @@ def run_nfw_profile_mass_to_light(
     identifiability.to_csv(run_dir / "profile_identifiability.csv", index=False)
     manifest.update(status="complete", completed_utc=datetime.now(timezone.utc).isoformat())
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    print(f"Saved mass-to-light NFW profile results under {run_dir}")
+    print(f"Saved {run_label} results under {run_dir}")
     return run_dir
 
 
