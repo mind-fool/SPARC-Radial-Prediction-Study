@@ -20,6 +20,7 @@ from run_anchored_forecast import run_anchored_forecast
 from anchored_forecast_statistics import analyze_anchored_forecast
 from anchored_configuration_stability import analyze_configuration_stability
 from plot_anchored_stability import plot_radius_ceiling_stability
+from run_nfw_profile_grid import run_nfw_profile_grid
 from prediction_statistics import analyze_prediction_run
 from horizon_statistics import analyze_horizons
 from visualize_rotation_rar import plot_rar
@@ -169,12 +170,13 @@ def main():
     print("12. Summarize completed anchored forecasts")
     print("13. Test anchored forecasts for numerical-bound stability")
     print("14. Generate anchored forecast stability figures")
+    print("15. Profile NFW scale-radius identifiability from anchored inner fits")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"}:
-        raise SystemExit("Choose a number from 0 to 14.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"}:
+        raise SystemExit("Choose a number from 0 to 15.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -318,6 +320,14 @@ def main():
             print("Run options 12 and 13 for this forecast before generating figures.")
             return
         plot_radius_ceiling_stability(stability_dir, statistics_dir)
+
+    if choice == "15":
+        requested = input("Galaxy IDs separated by commas [all eligible galaxies]: ").strip()
+        selected = requested.split(",") if requested else None
+        run_nfw_profile_grid(
+            output_dir=OUTPUT_DIR / "nfw_profiles", data_path=DATA_PATH,
+            galaxy_ids=selected,
+        )
 
     print(f"Results saved under {OUTPUT_DIR}")
 
