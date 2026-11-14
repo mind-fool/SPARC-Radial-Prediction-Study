@@ -12,6 +12,7 @@ import main as pipeline_main
 from plot_nfw_profile_normalization_grid import (
     normalization_grid_table,
     plot_normalization_grid_stability,
+    with_baseline_reference,
 )
 
 
@@ -55,6 +56,14 @@ class TestPlotNormalizationGrid(unittest.TestCase):
     def test_table_sorts_settings_by_disk_normalization(self):
         table = normalization_grid_table(profile_changes(), scale_changes())
         self.assertEqual(table["setting"].tolist(), ["disk_0.40", "disk_0.60"])
+
+    def test_baseline_reference_has_zero_changes(self):
+        table = normalization_grid_table(profile_changes(), scale_changes())
+        reference = with_baseline_reference(table)
+        baseline = reference.loc[reference["disk_mass_to_light"] == 0.50].iloc[0]
+        self.assertEqual(baseline["profile_status_changes"], 0)
+        self.assertEqual(baseline["factor_of_ten_or_more"], 0)
+        self.assertEqual(baseline["factor_of_ten_with_unchanged_status"], 0)
 
     def test_plot_writes_png_pdf_and_figure_data(self):
         with TemporaryDirectory() as directory:

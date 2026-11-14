@@ -50,6 +50,23 @@ def normalization_grid_table(profile_changes, scale_radius_changes):
     return table.sort_values("disk_mass_to_light").reset_index(drop=True)
 
 
+def with_baseline_reference(table, baseline=0.50):
+    """Add the zero-change reference point used by both figure panels."""
+    if (table["disk_mass_to_light"] == baseline).any():
+        raise ValueError("The baseline setting must not appear in the change summaries.")
+    reference = pd.DataFrame({
+        "setting": [f"disk_{baseline:.2f}"],
+        "galaxies": [int(table["galaxies"].iloc[0])],
+        "profile_status_changes": [0],
+        "factor_of_ten_or_more": [0],
+        "factor_of_ten_with_unchanged_status": [0],
+        "disk_mass_to_light": [baseline],
+    })
+    return pd.concat([table, reference], ignore_index=True).sort_values(
+        "disk_mass_to_light",
+    ).reset_index(drop=True)
+
+
 def plot_normalization_grid_stability(statistics_dir, output_dir=None):
     """Plot classification and scale-radius sensitivity from one completed report."""
     statistics_dir = Path(statistics_dir)
@@ -70,13 +87,14 @@ def plot_normalization_grid_stability(statistics_dir, output_dir=None):
     if len(galaxy_counts) != 1:
         raise ValueError("All normalization settings must use the same galaxy count.")
     galaxy_count = int(galaxy_counts[0])
+    plot_table = with_baseline_reference(table)
 
     fig, (classification_ax, radius_ax) = plt.subplots(
         2, 1, sharex=True, figsize=(7.2, 6.2), constrained_layout=True,
     )
-    x = table["disk_mass_to_light"]
+    x = plot_table["disk_mass_to_light"]
     classification_ax.plot(
-        x, table["profile_status_changes"], marker="o", color="C1",
+        x, plot_table["profile_status_changes"], marker="o", color="C1",
         label="Profile-status changes",
     )
     classification_ax.axvline(0.50, color="0.45", linestyle="--", linewidth=1,
@@ -87,11 +105,11 @@ def plot_normalization_grid_stability(statistics_dir, output_dir=None):
     classification_ax.grid(alpha=0.25)
 
     radius_ax.plot(
-        x, table["factor_of_ten_or_more"], marker="o", color="C0",
+        x, plot_table["factor_of_ten_or_more"], marker="o", color="C0",
         label=r"$|r_s/r_{s,0}| \geq 10$ or $\leq 0.1$",
     )
     radius_ax.plot(
-        x, table["factor_of_ten_with_unchanged_status"], marker="s", color="C2",
+        x, plot_table["factor_of_ten_with_unchanged_status"], marker="s", color="C2",
         label="Large shift; status unchanged",
     )
     radius_ax.axvline(0.50, color="0.45", linestyle="--", linewidth=1)
@@ -108,7 +126,7 @@ def plot_normalization_grid_stability(statistics_dir, output_dir=None):
     fig.savefig(figure_png, dpi=300)
     fig.savefig(figure_pdf)
     plt.close(fig)
-    table.to_csv(run_dir / "normalization_grid_figure_data.csv", index=False)
+    plot_table.to_csv(run_dir / "normalization_grid_figure_data.csv", index=False)
     manifest = {
         "status": "complete",
         "created_utc": datetime.now(timezone.utc).isoformat(),
