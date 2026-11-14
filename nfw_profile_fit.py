@@ -106,6 +106,8 @@ def fit_nfw_fixed_scale(galaxy_id, df, fixed_scale_radius_kpc, *,
         density_bound_hit = ""
     return {
         "galaxy_id": galaxy_id,
+        "rho_s_msun_pc3": density,
+        "r_s_kpc": float(fixed_scale_radius_kpc),
         "fixed_scale_radius_kpc": float(fixed_scale_radius_kpc),
         "density_msun_pc3": density,
         "chi_squared": chi_squared,
