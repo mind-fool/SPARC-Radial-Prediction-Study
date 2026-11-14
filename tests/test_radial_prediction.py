@@ -51,13 +51,13 @@ class TestRadialPrediction(unittest.TestCase):
                  patch.object(pipeline_main, "run_radial_prediction") as prediction, \
                  patch.object(pipeline_main, "run_boundary_sensitivity") as boundary, \
                  patch.object(pipeline_main, "run_validation") as validation, \
-                 patch("builtins.input", side_effect=["8", "NGC0100,NGC6195"]), \
+                 patch("builtins.input", side_effect=["8", "NGC0100,NGC6195", "0.2"]), \
                  redirect_stdout(StringIO()):
                 pipeline_main.main()
             prediction.assert_called_once_with(
                 output_dir=Path(directory) / "radial_prediction",
                 data_path=pipeline_main.DATA_PATH,
-                galaxy_ids=["NGC0100", "NGC6195"],
+                galaxy_ids=["NGC0100", "NGC6195"], holdout_fraction=0.2,
             )
             boundary.assert_not_called()
             validation.assert_not_called()

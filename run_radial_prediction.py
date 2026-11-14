@@ -209,15 +209,19 @@ def _source_hashes():
 
 def run_radial_prediction(
     output_dir=None, *, data_path=None, configurations=None, galaxy_ids=None,
+    holdout_fraction=PRIMARY_HOLDOUT_FRACTION,
 ):
     """Run the pre-specified inner-fit/outer-prediction study."""
+    if not 0 < holdout_fraction < 1:
+        raise ValueError("holdout_fraction must be strictly between zero and one.")
     data_path = Path(data_path) if data_path else PROJECT_DIR / "GALAXY_CSVDATA.csv"
     data_path = ensure_input_data(data_path)
     configs = boundary_configurations() if configurations is None else list(configurations)
     if not configs:
         raise ValueError("At least one numerical-bound configuration is required.")
     dataset = load_sparc_dataset(data_path)
-    eligible = eligible_galaxy_ids(dataset)
+    split_kwargs = {"holdout_fraction": holdout_fraction}
+    eligible = eligible_galaxy_ids(dataset, **split_kwargs)
     if not eligible:
         raise ValueError("No galaxies satisfy the primary radial holdout criteria.")
     if galaxy_ids is not None:
@@ -255,7 +259,7 @@ def run_radial_prediction(
         "numpy": np.__version__,
         "pandas": pd.__version__,
         "scipy": scipy.__version__,
-        "holdout_fraction": PRIMARY_HOLDOUT_FRACTION,
+        "holdout_fraction": holdout_fraction,
         "minimum_training_points": MIN_TRAIN_POINTS,
         "minimum_held_out_points": MIN_HELD_OUT_POINTS,
         "galaxy_count": len(eligible),
@@ -277,7 +281,7 @@ def run_radial_prediction(
         print(f"{config_number}/{len(configs)} {configuration['label']}", flush=True)
         for number, galaxy_id in enumerate(eligible, 1):
             galaxy = dataset.loc[dataset["ID"].eq(galaxy_id)]
-            training, held_out = split_inner_outer(galaxy)
+            training, held_out = split_inner_outer(galaxy, **split_kwargs)
             for model in ("burkert", "nfw"):
                 fields, points = fit_and_predict(
                     galaxy_id, training, held_out, model, configuration,

@@ -185,6 +185,11 @@ Burkert--NFW prediction comparisons, summaries, and a dated manifest under
 `outputs/radial_prediction/`. The held-out score is chi-squared per held-out point;
 it is not reduced chi-squared because no parameters are fit to those points.
 
+The menu accepts another fraction when needed for a pre-specified radial-horizon
+replication. Every run stores that exact fraction and its resulting eligible-galaxy
+set in the manifest; do not compare runs with different fractions as though they
+used identical samples.
+
 Option **9** resamples galaxies, not individual velocity points, when computing
 the paired-score bootstrap intervals. It also writes paired score summaries,
 training-to-prediction preference transitions, and selected-bound-hit summaries

@@ -158,9 +158,17 @@ def main():
     if choice == "8":
         requested = input("Galaxy IDs separated by commas [all eligible galaxies]: ").strip()
         selected = requested.split(",") if requested else None
+        fraction_value = input("Outer held-out fraction [0.30]: ").strip()
+        try:
+            holdout_fraction = float(fraction_value) if fraction_value else 0.30
+            if not 0 < holdout_fraction < 1:
+                raise ValueError
+        except ValueError:
+            print("Enter a held-out fraction strictly between zero and one.")
+            return
         run_radial_prediction(
             output_dir=OUTPUT_DIR / "radial_prediction", data_path=DATA_PATH,
-            galaxy_ids=selected,
+            galaxy_ids=selected, holdout_fraction=holdout_fraction,
         )
 
     if choice == "9":
