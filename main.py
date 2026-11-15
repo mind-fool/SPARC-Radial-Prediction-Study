@@ -19,6 +19,7 @@ from anchored_forecast_statistics import analyze_anchored_forecast
 from anchored_configuration_stability import analyze_configuration_stability
 from plot_anchored_stability import plot_radius_ceiling_stability
 from run_nfw_profile_grid import run_nfw_profile_grid
+from nfw_profile_fit import DEFAULT_DENSITY_BOUNDS
 from run_nfw_density_floor_sweep import run_nfw_density_floor_sweep
 from run_nfw_profile_mass_to_light import run_nfw_profile_mass_to_light
 from run_nfw_profile_normalization_grid import run_nfw_profile_normalization_grid
@@ -493,9 +494,18 @@ def main():
     if choice == "20":
         requested = input("Galaxy IDs separated by commas [all eligible galaxies]: ").strip()
         selected = requested.split(",") if requested else None
+        requested_floor = input("NFW density lower bound [1e-5; or enter 1e-9]: ").strip()
+        try:
+            density_floor = float(requested_floor) if requested_floor else 1e-5
+        except ValueError:
+            density_floor = None
+        if density_floor not in (1e-5, 1e-9):
+            print("Choose 1e-5 or 1e-9 Msun/pc^3 for this paired comparison.")
+            return
         run_nfw_profile_normalization_grid(
             output_dir=OUTPUT_DIR / "nfw_profile_normalization_grid", data_path=DATA_PATH,
             galaxy_ids=selected,
+            density_bounds=(density_floor, DEFAULT_DENSITY_BOUNDS[1]),
         )
 
     if choice == "21":

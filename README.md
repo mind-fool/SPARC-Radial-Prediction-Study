@@ -80,6 +80,13 @@ The two sweeps save the CSVs and manuscript outputs in `outputs/sweeps/`.
   observations, galaxies, radial splits, radius grid, and density bounds.
 * Option **19** summarizes one completed option-18 run, including profile-status
   counts and every matched baseline-to-alternative classification change.
+* Option **20** repeats the nine-setting stellar normalization grid. At its prompt,
+  choose the original NFW density floor `1e-5` or the lower floor `1e-9` in
+  solar masses per cubic parsec. The upper density bound remains 10, and the
+  selected bounds are recorded in each run's manifest.
+* Option **21** summarizes a selected completed option-20 run; option **22**
+  generates its figures. Compare the two floor runs only on matched galaxies,
+  stellar settings, and scale-radius grid points.
 
 ### Compare Burkert and NFW
 
