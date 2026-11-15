@@ -221,10 +221,12 @@ new dated `outputs/radial_prediction/horizon_statistics/` folder.
 ### Forecast middle and far-outer radii from one fixed inner fit
 
 Option **11** is the stricter anchored forecast. It splits each eligible curve by
-sorted measured radius into an inner 60% training region, a middle 20% forecast
-region, and a far-outer 20% forecast region. The fit uses only the inner region,
-then the exact same fitted parameters are used to predict both later regions. The
-model is not refit after the inner region.
+the number of points sorted by measured radius into an inner 60% training region,
+a middle 20% forecast region, and a far-outer 20% forecast region. These
+percentages are fractions of the measured points, not fractions of the radial
+span. The fit uses only the inner region, then the exact same fitted parameters
+are used to predict both later regions. The model is not refit after the inner
+region.
 
 A galaxy must have at least 20 usable measured radii: 12 inner, four middle, and
 four far-outer points. The current SPARC input has 60 eligible galaxies. As in the
@@ -242,8 +244,22 @@ numerical-bound configurations. It saves a dated folder in
 * `model_comparisons.csv`: matched Burkert--NFW prediction comparisons within each
   configuration and region;
 * `forecast_summary.csv`: configuration-level prediction and failure summaries;
+* `forecast_controls.csv`: middle and outer scores for three simple forecasts,
+  calculated once per galaxy from the inner data;
+* `forecast_control_points.csv`: each control's prediction at each held-out radius;
 * `manifest.json`: the input hash, source hashes, software versions, exact split,
   numerical configurations, and completion status.
+
+The three controls carry forward the last inner observed speed, the mean of the
+last three inner observed speeds, or the halo speed inferred at the last inner
+point. The third control also uses the measured baryonic contribution at each
+forecast radius, just as the halo fits do. These controls are simple benchmarks,
+not physical alternatives to Burkert or NFW. Each control is scored on the same
+middle and outer points as the halo forecasts. Option **12** writes matched
+`forecast_control_comparisons.csv` and `forecast_control_summary.csv` alongside
+its other statistics. The comparison summary counts galaxies, reports the median
+paired score difference, and gives descriptive bootstrap intervals and sign tests.
+The control files are absent when option **12** summarizes an older forecast run.
 
 This design separates two questions that a changing holdout fraction confounds:
 whether a model can extrapolate farther from a fixed inner fit, and whether it has

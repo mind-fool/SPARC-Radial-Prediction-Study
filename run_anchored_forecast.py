@@ -28,6 +28,11 @@ from run_radial_prediction import ensure_input_data
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
+FORECAST_CONTROLS = (
+    "last_velocity_flat",
+    "last_three_mean_flat",
+    "last_halo_speed_flat",
+)
 
 
 def classify_scores(burkert_score, nfw_score):
@@ -37,6 +42,71 @@ def classify_scores(burkert_score, nfw_score):
     if np.isclose(burkert_score, nfw_score, rtol=1e-5, atol=1e-8):
         return "near_tie"
     return "burkert" if burkert_score < nfw_score else "nfw"
+
+
+def control_predictions(training, held_out):
+    """Predict held-out speeds using only inner velocities and stated inputs."""
+    last_velocity = float(training["Vobs_kms"].iloc[-1])
+    last_three_mean = float(training["Vobs_kms"].iloc[-3:].mean())
+    last_baryonic_squared = float(training["Vbar_squared_kms2"].iloc[-1])
+    last_halo_squared = max(0.0, last_velocity**2 - last_baryonic_squared)
+    held_out_baryonic_squared = held_out["Vbar_squared_kms2"].to_numpy(dtype=float)
+    if np.any(held_out_baryonic_squared + last_halo_squared < 0):
+        raise ValueError("The constant-halo control has negative total squared speed.")
+    return {
+        "last_velocity_flat": np.full(len(held_out), last_velocity),
+        "last_three_mean_flat": np.full(len(held_out), last_three_mean),
+        "last_halo_speed_flat": np.sqrt(
+            held_out_baryonic_squared + last_halo_squared,
+        ),
+    }
+
+
+def forecast_control_rows(galaxy_id, training, regions):
+    """Score simple forecasts on the same middle and outer points as the halos."""
+    summaries, points = [], []
+    training_radius_max = float(training["R_kpc"].max())
+    for region, held_out in regions.items():
+        observed = held_out["Vobs_kms"].to_numpy(dtype=float)
+        error = held_out["eV_kms"].to_numpy(dtype=float)
+        predictions = control_predictions(training, held_out)
+        metadata = {
+            "galaxy_id": galaxy_id,
+            "region": region,
+            "n_training": len(training),
+            "n_held_out": len(held_out),
+            "training_radius_max_kpc": training_radius_max,
+            "held_out_radius_min_kpc": float(held_out["R_kpc"].min()),
+            "held_out_radius_max_kpc": float(held_out["R_kpc"].max()),
+            "radial_leverage": float(held_out["R_kpc"].max() / training_radius_max),
+        }
+        for control in FORECAST_CONTROLS:
+            prediction = predictions[control]
+            residual = observed - prediction
+            summaries.append({
+                **metadata,
+                "control": control,
+                "uses_held_out_baryons": control == "last_halo_speed_flat",
+                "chi_squared": float(np.sum((residual / error) ** 2)),
+                "chi_squared_per_point": float(np.mean((residual / error) ** 2)),
+                "rmse_kms": float(np.sqrt(np.mean(residual**2))),
+            })
+            for radius, velocity, uncertainty, baryonic_squared, predicted in zip(
+                held_out["R_kpc"], held_out["Vobs_kms"], held_out["eV_kms"],
+                held_out["Vbar_squared_kms2"], prediction,
+            ):
+                points.append({
+                    "galaxy_id": galaxy_id,
+                    "region": region,
+                    "control": control,
+                    "radius_kpc": radius,
+                    "observed_kms": velocity,
+                    "error_kms": uncertainty,
+                    "baryonic_squared_kms2": baryonic_squared,
+                    "prediction_kms": predicted,
+                    "residual_kms": velocity - predicted,
+                })
+    return summaries, points
 
 
 def fit_and_forecast(galaxy_id, training, regions, model, configuration):
@@ -202,8 +272,11 @@ def run_anchored_forecast(output_dir=None, *, data_path=None, configurations=Non
         "purpose": "Fit inner 60% once and forecast the middle and far-outer 20% regions.",
         "interpretation": (
             "A model is never refit after the inner region. The middle and outer "
-            "points come from the same published curve and are not independent surveys."
+            "points come from the same published curve and are not independent surveys. "
+            "The flat controls use only inner observed speeds; the constant-halo "
+            "control also uses the measured held-out baryonic contribution."
         ),
+        "forecast_controls": FORECAST_CONTROLS,
         "git_commit": commit,
         "working_tree_dirty": dirty,
         "input_sha256": sha256(data_path.read_bytes()).hexdigest(),
@@ -236,6 +309,20 @@ def run_anchored_forecast(output_dir=None, *, data_path=None, configurations=Non
         f"({len(eligible) * len(configs) * 2} model fits; ten starts per fit).",
         flush=True,
     )
+    control_rows, control_point_rows = [], []
+    for galaxy_id in eligible:
+        galaxy = dataset.loc[dataset["ID"].eq(galaxy_id)]
+        training, middle, outer = split_inner_middle_outer(galaxy)
+        summaries, points = forecast_control_rows(
+            galaxy_id, training, {"middle": middle, "outer": outer},
+        )
+        control_rows.extend(summaries)
+        control_point_rows.extend(points)
+    pd.DataFrame(control_rows).to_csv(run_dir / "forecast_controls.csv", index=False)
+    pd.DataFrame(control_point_rows).to_csv(
+        run_dir / "forecast_control_points.csv", index=False,
+    )
+
     result_rows, point_rows = [], []
     for config_number, configuration in enumerate(configs, 1):
         print(f"{config_number}/{len(configs)} {configuration['label']}", flush=True)

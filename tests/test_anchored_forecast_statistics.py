@@ -11,6 +11,8 @@ import json
 import main as pipeline_main
 from anchored_forecast_statistics import (
     analyze_anchored_forecast,
+    control_comparison_rows,
+    control_comparison_summary,
     paired_score_differences,
     region_preference_transitions,
     training_to_forecast_transitions,
@@ -18,6 +20,30 @@ from anchored_forecast_statistics import (
 
 
 class TestAnchoredForecastStatistics(unittest.TestCase):
+    def test_control_comparisons_match_galaxy_and_region(self):
+        controls = pd.DataFrame([
+            {"galaxy_id": galaxy_id, "region": region,
+             "control": "last_velocity_flat", "chi_squared_per_point": score,
+             "radial_leverage": 2.0}
+            for galaxy_id, region, score in (
+                ("G1", "middle", 1.5), ("G1", "outer", 3.5),
+                ("G2", "middle", 1.5), ("G2", "outer", 1.5),
+            )
+        ])
+        results = self.results().assign(family="baseline")
+        matched = control_comparison_rows(results, controls)
+        self.assertEqual(len(matched), 8)
+        g1_outer = matched.loc[
+            matched.galaxy_id.eq("G1") & matched.region.eq("outer")
+        ].set_index("model")
+        self.assertEqual(g1_outer.loc["burkert", "lower_score"], "halo")
+        self.assertEqual(g1_outer.loc["nfw", "lower_score"], "control")
+        summary = control_comparison_summary(matched, replicates=20)
+        nfw_outer = summary.loc[
+            summary.model.eq("nfw") & summary.region.eq("outer")
+        ].iloc[0]
+        self.assertEqual(nfw_outer["control_lower_score_galaxies"], 1)
+
     def test_main_option_twelve_uses_selected_completed_run(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

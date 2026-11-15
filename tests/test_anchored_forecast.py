@@ -9,10 +9,42 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import main as pipeline_main
-from run_anchored_forecast import classify_scores, comparison_rows
+from run_anchored_forecast import (
+    classify_scores,
+    comparison_rows,
+    control_predictions,
+    forecast_control_rows,
+)
 
 
 class TestAnchoredForecast(unittest.TestCase):
+    def test_controls_do_not_use_held_out_velocities_to_predict(self):
+        training = pd.DataFrame({
+            "R_kpc": np.arange(1.0, 13.0),
+            "Vobs_kms": np.arange(20.0, 32.0),
+            "Vbar_squared_kms2": np.full(12, 100.0),
+        })
+        held_out = pd.DataFrame({
+            "R_kpc": [13.0, 14.0],
+            "Vobs_kms": [32.0, 33.0],
+            "eV_kms": [2.0, 2.0],
+            "Vbar_squared_kms2": [100.0, 120.0],
+        })
+        predictions = control_predictions(training, held_out)
+        changed_targets = held_out.copy()
+        changed_targets["Vobs_kms"] = [100.0, 200.0]
+        for name, values in predictions.items():
+            np.testing.assert_array_equal(
+                values, control_predictions(training, changed_targets)[name],
+            )
+        np.testing.assert_array_equal(predictions["last_velocity_flat"], [31.0, 31.0])
+        np.testing.assert_array_equal(predictions["last_three_mean_flat"], [30.0, 30.0])
+        summaries, points = forecast_control_rows("G1", training, {"outer": held_out})
+        flat = next(row for row in summaries if row["control"] == "last_velocity_flat")
+        self.assertAlmostEqual(flat["chi_squared_per_point"], 0.625)
+        self.assertAlmostEqual(flat["radial_leverage"], 14.0 / 12.0)
+        self.assertEqual(len(points), 6)
+
     def test_score_classification_uses_expected_direction(self):
         self.assertEqual(classify_scores(1.0, 2.0), "burkert")
         self.assertEqual(classify_scores(2.0, 1.0), "nfw")
