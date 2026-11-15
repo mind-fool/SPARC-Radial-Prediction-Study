@@ -285,6 +285,25 @@ diagnostics for deterministic representative cases under `outputs/nfw_profiles/f
 The forecast panels are explicitly diagnostic; held-out scores are never used to
 choose a scale radius.
 
+### Audit the NFW density floor
+
+Option **23** repeats the fixed-radius inner-training profiles for the same eligible
+galaxies and 41 radii, changing only the NFW density lower bound through
+`1e-5`, `1e-6`, `1e-7`, `1e-8`, and `1e-9` solar masses per cubic parsec. The
+upper density bound remains 10. The sweep is an exploratory numerical-bound
+check prompted by fits that hit the original `1e-5` floor. It writes a dated
+folder under `outputs/nfw_density_floor_sweep/` with the complete profile grid,
+profile status for every galaxy and floor, status counts, changes from the
+original floor, a PNG/PDF figure generated from those CSVs, and a manifest
+recording settings and source hashes. A failed
+fit at either radius-grid endpoint is flagged separately; the status labels
+follow the original profile rule for a direct comparison. No held-out
+observations enter these fits.
+
+The original option-16 closed/open counts are conditional on its `1e-5` density
+floor. Use the option-23 output when interpreting whether a nominal profile
+closure survives lowering that numerical floor.
+
 ### Test profile identifiability under stellar mass-to-light assumptions
 
 Option **18** tests whether the nominal NFW profile classification depends on the

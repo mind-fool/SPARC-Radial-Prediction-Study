@@ -34,6 +34,42 @@ class TestNfwProfileFit(unittest.TestCase):
         self.assertTrue(np.all(result["model_kms"] >= 0))
         self.assertAlmostEqual(result["density_msun_pc3"], 0.03, places=5)
 
+    def test_recovers_density_just_above_lower_bound(self):
+        radius = np.linspace(0.5, 8.0, 12)
+        true_density = 1.1e-5
+        scale_radius = 10_000.0
+        baryonic_squared = np.full(radius.size, 400.0)
+        observed = total_velocity_from_squared(
+            baryonic_squared,
+            nfw_halo_velocity(radius, true_density, scale_radius) ** 2,
+        )
+        data = pd.DataFrame({
+            "ID": "SYNTHETIC", "R_kpc": radius, "Vobs_kms": observed,
+            "eV_kms": np.ones_like(radius),
+            "Vbar_squared_kms2": baryonic_squared,
+        })
+        result = fit_nfw_fixed_scale("SYNTHETIC", data, scale_radius)
+        self.assertAlmostEqual(result["density_msun_pc3"], true_density, places=10)
+        self.assertLess(result["chi_squared"], 1e-10)
+
+    def test_recovers_density_just_below_upper_bound(self):
+        radius = np.linspace(0.5, 8.0, 12)
+        true_density = 9.5
+        scale_radius = 0.1
+        baryonic_squared = np.full(radius.size, 400.0)
+        observed = total_velocity_from_squared(
+            baryonic_squared,
+            nfw_halo_velocity(radius, true_density, scale_radius) ** 2,
+        )
+        data = pd.DataFrame({
+            "ID": "SYNTHETIC", "R_kpc": radius, "Vobs_kms": observed,
+            "eV_kms": np.ones_like(radius),
+            "Vbar_squared_kms2": baryonic_squared,
+        })
+        result = fit_nfw_fixed_scale("SYNTHETIC", data, scale_radius)
+        self.assertAlmostEqual(result["density_msun_pc3"], true_density, places=6)
+        self.assertLess(result["chi_squared"], 1e-10)
+
     def test_rejects_nonpositive_fixed_scale_radius(self):
         data = self.synthetic_data(np.full(12, 400.0))
         with self.assertRaisesRegex(ValueError, "positive"):

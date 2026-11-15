@@ -19,6 +19,7 @@ from anchored_forecast_statistics import analyze_anchored_forecast
 from anchored_configuration_stability import analyze_configuration_stability
 from plot_anchored_stability import plot_radius_ceiling_stability
 from run_nfw_profile_grid import run_nfw_profile_grid
+from run_nfw_density_floor_sweep import run_nfw_density_floor_sweep
 from run_nfw_profile_mass_to_light import run_nfw_profile_mass_to_light
 from run_nfw_profile_normalization_grid import run_nfw_profile_normalization_grid
 from nfw_profile_normalization_grid_statistics import analyze_nfw_profile_normalization_grid
@@ -270,12 +271,13 @@ def main():
     print("20. Test NFW profiles across a tied stellar normalization grid")
     print("21. Summarize completed stellar normalization grid studies")
     print("22. Generate stellar normalization grid sensitivity figure")
+    print("23. Audit NFW profile closure against the density floor")
     print("0. Quit")
     choice = input("Choose an analysis [5]: ").strip() or "5"
     if choice == "0":
         return
-    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"}:
-        raise SystemExit("Choose a number from 0 to 22.")
+    if choice not in {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"}:
+        raise SystemExit("Choose a number from 0 to 23.")
 
     prepare_input()
     for folder in ("rotation_curves", "rar_plots", "halo_fits", "sweeps"):
@@ -531,6 +533,14 @@ def main():
             print("Run option 21 for this normalization grid before generating figures.")
             return
         plot_normalization_grid_stability(statistics_dir)
+
+    if choice == "23":
+        requested = input("Galaxy IDs separated by commas [all eligible galaxies]: ").strip()
+        selected = requested.split(",") if requested else None
+        run_nfw_density_floor_sweep(
+            output_dir=OUTPUT_DIR / "nfw_density_floor_sweep", data_path=DATA_PATH,
+            galaxy_ids=selected,
+        )
 
     print(f"Results saved under {OUTPUT_DIR}")
 

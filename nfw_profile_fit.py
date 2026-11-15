@@ -1,14 +1,13 @@
 """One-dimensional NFW density fits at a fixed scale radius."""
 
 import numpy as np
-from scipy.optimize import minimize_scalar
+from scipy.optimize import brentq
 
 from burkert_halo_fit import total_velocity_from_squared
 from halo_models import nfw_halo_velocity
 
 
 DEFAULT_DENSITY_BOUNDS = (1e-5, 10.0)
-DENSITY_GRID_POINTS = 81
 
 
 def _valid_arrays(galaxy_id, df):
@@ -27,6 +26,8 @@ def _valid_arrays(galaxy_id, df):
     arrays = tuple(values[valid] for values in (radius, observed, error, baryonic_squared))
     if arrays[0].size < 3:
         raise ValueError(f"Galaxy {galaxy_id!r} has too few valid observations.")
+    if np.any(arrays[1] <= 0):
+        raise ValueError("Observed circular speeds must be positive for the density profile fit.")
     return arrays
 
 
@@ -53,16 +54,14 @@ def feasible_density_lower_bound(radius, baryonic_squared, fixed_scale_radius_kp
 
 
 def fit_nfw_fixed_scale(galaxy_id, df, fixed_scale_radius_kpc, *,
-                        density_bounds=DEFAULT_DENSITY_BOUNDS,
-                        density_grid_points=DENSITY_GRID_POINTS):
+                        density_bounds=DEFAULT_DENSITY_BOUNDS):
     """Fit NFW density at a specified scale radius using only the supplied rows.
 
-    The profile search is deterministic: it evaluates a logarithmic density grid,
-    then refines the lowest grid interval in log density. The returned chi-squared
-    is a training statistic, with one fitted parameter (density).
+    At fixed radius, squared halo speed is linear in density. For positive
+    observed speeds, chi-squared is strictly convex in feasible density, so
+    a bracketed derivative root or a bound gives its global minimum. The
+    returned chi-squared is a training statistic with one fitted parameter.
     """
-    if density_grid_points < 5:
-        raise ValueError("density_grid_points must be at least five.")
     radius, observed, error, baryonic_squared = _valid_arrays(galaxy_id, df)
     density_min, density_max = (float(value) for value in density_bounds)
     feasible_min = feasible_density_lower_bound(
@@ -71,29 +70,35 @@ def fit_nfw_fixed_scale(galaxy_id, df, fixed_scale_radius_kpc, *,
     if feasible_min >= density_max:
         raise ValueError("No positive total-speed solution within the density bounds.")
 
+    unit_halo_squared = nfw_halo_velocity(radius, 1.0, fixed_scale_radius_kpc) ** 2
+
     def evaluate(density):
-        halo_squared = nfw_halo_velocity(radius, density, fixed_scale_radius_kpc) ** 2
+        halo_squared = density * unit_halo_squared
         model = total_velocity_from_squared(baryonic_squared, halo_squared)
         residuals = observed - model
         return float(np.sum((residuals / error) ** 2)), model, residuals
 
-    grid = np.geomspace(feasible_min, density_max, num=density_grid_points)
-    grid_scores = np.asarray([evaluate(density)[0] for density in grid])
-    best_index = int(np.argmin(grid_scores))
-    candidates = [(grid_scores[best_index], grid[best_index])]
-    if 0 < best_index < len(grid) - 1:
-        lower_log = np.log(grid[best_index - 1])
-        upper_log = np.log(grid[best_index + 1])
-        refined = minimize_scalar(
-            lambda log_density: evaluate(np.exp(log_density))[0],
-            bounds=(lower_log, upper_log), method="bounded",
-            options={"xatol": 1e-12},
-        )
-        if refined.success and np.isfinite(refined.fun):
-            candidates.append((float(refined.fun), float(np.exp(refined.x))))
-    chi_squared, density = min(candidates, key=lambda pair: pair[0])
+    def derivative(log_density):
+        total_squared = baryonic_squared + np.exp(log_density) * unit_halo_squared
+        if np.any(total_squared <= 0):
+            return -np.inf
+        return float(np.sum(
+            unit_halo_squared / error**2
+            * (1.0 - observed / np.sqrt(total_squared))
+        ))
+
+    lower_log = np.log(feasible_min)
+    upper_log = np.log(density_max)
+    if derivative(lower_log) >= 0:
+        density = feasible_min
+    elif derivative(upper_log) <= 0:
+        density = density_max
+    else:
+        density = float(np.exp(brentq(
+            derivative, lower_log, upper_log, xtol=1e-12,
+        )))
     chi_squared, model, residuals = evaluate(density)
-    halo_squared = nfw_halo_velocity(radius, density, fixed_scale_radius_kpc) ** 2
+    halo_squared = density * unit_halo_squared
     physical_boundary_hit = bool(np.any(
         (baryonic_squared < 0)
         & np.isclose(halo_squared, -baryonic_squared, rtol=1e-4, atol=0.0)
@@ -117,7 +122,7 @@ def fit_nfw_fixed_scale(galaxy_id, df, fixed_scale_radius_kpc, *,
         "feasible_density_lower_bound_msun_pc3": feasible_min,
         "density_bound_hit": density_bound_hit,
         "physical_boundary_hit": physical_boundary_hit,
-        "density_grid_points": density_grid_points,
+        "density_optimizer": "monotone_derivative_brentq",
         "radius_kpc": radius,
         "observed_kms": observed,
         "error_kms": error,
